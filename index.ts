@@ -103,8 +103,10 @@ const generateBearerToken = async (username:number, password:string): Promise<Us
 
 
   const sessionStorage = await page.evaluate(() =>  Object.assign({}, window.sessionStorage));
+  console.log('Grabbed bearer token')
   await browser.close();
   const data = JSON.parse(sessionStorage[Object.keys(sessionStorage)[0]])
+  console.log('Data parsed')
   return {
     status: 200,
     message: 'User succesfully logged in',
