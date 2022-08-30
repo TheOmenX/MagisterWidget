@@ -63,7 +63,10 @@ let users: User[] = []
 
 // Generating JWT
 const generateBearerToken = async (username:number, password:string): Promise<User> => {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox','--disable-setuid-sandbox']
+  });
   const page = await browser.newPage();
   await page.goto('https://canisius.magister.net', { waitUntil: 'networkidle0' }); // Navigate to login page, wait till redirect is succesfull
   console.log('Login page loaded')
