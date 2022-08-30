@@ -139,7 +139,7 @@ const validateUser = async(headers: any): Promise<User> => {
             data = users[indexUser]
         }
     }
-    console.log('Validated user')
+    console.log('Validated user: ' + data)
     return data
 }
 
@@ -333,7 +333,8 @@ app.get('/api/user', async (req: any, res: any) => {
                 </div>
             </div>
         </body>
-        </html>`
+        </html>`,
+        puppeteerArgs: { args: ["--no-sandbox"] }
       })
         .then(() => res.sendFile('./images/151563-2022-08-30.png', { root: __dirname }))
 
