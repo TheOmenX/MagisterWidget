@@ -130,6 +130,7 @@ const validateUser = async(headers: any): Promise<User> => {
     if(indexUser === -1){
         console.log('Creating new user')
         data = await generateBearerToken(username, password)
+        console.log('Finished creating user')
         users.push(data)
     }else{
         if(users[indexUser].expires_at ?? Date.now() < Date.now()/1000){ // If token expired
@@ -138,6 +139,7 @@ const validateUser = async(headers: any): Promise<User> => {
             data = users[indexUser]
         }
     }
+    console.log('Validated user')
     return data
 }
 
