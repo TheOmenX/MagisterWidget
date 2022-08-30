@@ -147,12 +147,14 @@ const validateUser = async(headers: any): Promise<User> => {
 
 app.get('/api/user', async (req: any, res: any) => {
     let userData = await validateUser(req.query)
+    console.log('Gathered User Data')
 
     if(userData.status === 400) res.send(userData)
     //#region Requesting Rooster Data
     let date:Date = new Date(Date.now())
     let roosterData:MagisterData;
     let dateFormat:string;
+    console.log('Starting rooster loop')
     do {
         dateFormat = date.toISOString().split('T')[0]
         const roosterResponse = await node_fetch(`https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=${dateFormat}&van=${dateFormat}`, {
