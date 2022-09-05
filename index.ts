@@ -1,3 +1,4 @@
+import { json } from "stream/consumers";
 
 var express = require('express')
 const app = express();
@@ -5,17 +6,35 @@ const puppeteer = require('puppeteer');
 const request = require('request');
 const node_fetch = require('node-fetch');
 const nodeHtmlToImage = require('node-html-to-image')
-const  { v4: uuidv4 }  = require('uuid');
 const fs = require('fs');
-const nocache = require('nocache');
 
-require.extensions['.html'] = function (module, filename) {
-    module.exports = fs.readFileSync(filename, 'utf8');
-};
+let users:Array<UserData> = [];
+
+//Setup Users
+function updateUsers() {
+    fs.readFile("./users.json", "utf8", (err:Error, jsonString:string) => {
+    if (err) {
+        console.log("File read failed:", err);
+        return;
+    }
+    try {
+        const jsonData:Array<User> = JSON.parse(jsonString);
+        console.log(jsonData)
+        jsonData.forEach(async (userLogin)=>{
+            let user = await generateBearerToken(userLogin)
+            console.log(users.push(user))
+
+        })
+    } catch (err) {
+        console.log("Error parsing JSON string:", err);
+    }
+    });
+}
+
+updateUsers()
+setInterval(updateUsers, 1000 * 60 * 60 * 1.5)
 
 
-app.use(nocache());
-app.set('etag', false)
 app.use(express.static(__dirname)); 
 
 const maandenLijst = ['Januari', 'Februari', 'Maart', 'April', 'Mei' ,'Juni' ,
@@ -24,13 +43,13 @@ const maandenLijst = ['Januari', 'Februari', 'Maart', 'April', 'Mei' ,'Juni' ,
 const dagenLijst = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'] 
 
 interface User {
-    status: number,
-    message: string,
-    leerling_nummer?: number,
-    naam?: string,
-    expires_at?: number,
-    bearer_token?: string,
-    image?: string,
+    leerling_nummer: number,
+    password: string,
+}
+
+interface UserData extends User {
+    expires_at: number,
+    bearer_token: string,
 }
 
 interface MagisterData {
@@ -59,10 +78,10 @@ type pastItem = {
     count: number,
 }
 
-let users: User[] = []
-
-// Generating JWT
-const generateBearerToken = async (username:number, password:string): Promise<User> => {
+// // Generating JWT
+const generateBearerToken = async (login:User): Promise<UserData> => {
+    const username = login.leerling_nummer;
+    const password = login.password;
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox','--disable-setuid-sandbox']
@@ -80,7 +99,7 @@ const generateBearerToken = async (username:number, password:string): Promise<Us
       ]);
       console.log('Submitted username and redirected to microsoft login page')
   } catch (error) {
-        return {status: 400, message: 'User failed to log in. *Wrong Id*'}
+        throw new Error('User failed to log in. *Wrong Id*')
   }
 
   await page.evaluate((val:any) => (<HTMLInputElement>document.querySelector('#i0118')!).value = val, password);
@@ -94,11 +113,12 @@ const generateBearerToken = async (username:number, password:string): Promise<Us
   try {
     await Promise.all([
         page.click('#idSIButton9'),
+        page.screenshot({path: './images/img.png'}),
         page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }),
     ]);
     console.log('Skipped popup')
   } catch (error) {
-    return {status: 400, message: 'User failed to log in. *Wrong Password*'}
+    throw new Error ('User failed to log in. *Wrong Password*')
   }
 
 
@@ -108,48 +128,45 @@ const generateBearerToken = async (username:number, password:string): Promise<Us
   const data = JSON.parse(sessionStorage[Object.keys(sessionStorage)[0]])
   console.log('Data parsed')
   return {
-    status: 200,
-    message: 'User succesfully logged in',
     leerling_nummer: username,
-    naam: `${data.profile.given_name} ${data.profile.family_name}`,
+    password: password,
     expires_at: data.expires_at,
     bearer_token: data.access_token
   }
 };
 
-const validateUser = async(headers: any): Promise<User> => {
-    const username:number = headers.username;
-    const password:string = headers.password;
+// const validateUser = async(headers: any): Promise<User> => {
+//     const username:number = headers.username;
+//     const password:string = headers.password;
 
-    let data: User | Error = users.find(user => user.leerling_nummer == username) ?? {status: 500, message: 'An error occured'};
-    if(data.status === 200) return data;
-    if(!username || !password){
-        return {status: 400, message: 'Incorrect headers'}
-    }
-    const indexUser = users.findIndex(e => e.leerling_nummer === username)
-    if(indexUser === -1){
-        console.log('Creating new user')
-        data = await generateBearerToken(username, password)
-        console.log('Finished creating user')
-        users.push(data)
-    }else{
-        if(users[indexUser].expires_at ?? Date.now() < Date.now()/1000){ // If token expired
-            data = await generateBearerToken(username, password)
-            users.push(data)
-            data = users[indexUser]
-        }
-    }
-    console.log('Validated user: ' + data)
-    return data
-}
-
+//     let data:User = users.find(user => user.leerling_nummer == username) ?? {status: 500, message: 'An error occured'};
+//     if(data.status === 200) return data;
+//     if(!username || !password){
+//         return {status: 400, message: 'Incorrect headers'}
+//     }
+//     const indexUser = users.findIndex(e => e.leerling_nummer === username)
+//     if(indexUser === -1){
+//         console.log('Creating new user')
+//         data = await generateBearerToken(username, password)
+//         console.log('Finished creating user')
+//         users.push(data)
+//     }else{
+//         if(users[indexUser].expires_at ?? Date.now() < Date.now()/1000){ // If token expired
+//             data = await generateBearerToken(username, password)
+//             users.push(data)
+//             data = users[indexUser]
+//         }
+//     }
+//     console.log('Validated user: ' + data)
+//     return data
+// }
 
 
 app.get('/api/user', async (req: any, res: any) => {
-    let userData = await validateUser(req.query)
-    console.log('Gathered User Data')
+    let userData:UserData = users.find((user) => user.leerling_nummer == req.headers.username) ?? res.json({message: "User not found"})
+    if(userData.password !== req.headers.password) {res.status(400).json({message: "Password not matching"}); return}
+    
 
-    if(userData.status === 400) res.send(userData)
     //#region Requesting Rooster Data
     let date:Date = new Date(Date.now())
     let roosterData:MagisterData;
@@ -336,7 +353,7 @@ app.get('/api/user', async (req: any, res: any) => {
         </html>`,
         puppeteerArgs: { args: ["--no-sandbox"] }
       })
-        .then(() => res.sendFile('./images/151563-2022-08-30.png', { root: __dirname }))
+        .then(() => res.sendFile(`/${imagePath}`, { root: __dirname }))
 
 
 
@@ -367,35 +384,36 @@ app.get('/api/test', async (req: any, res: any) => {
     
     console.log(req.query)
 
-    res.sendFile('./images/151563-2022-08-30.png', { root: __dirname })
+    res.json(users)
+    //res.sendFile('./images/151563-2022-08-30.png', { root: __dirname })
 
 })
 
-app.get('/api/user/rooster', async (req: any, res: any) => {
-    let data = await validateUser(req.headers)
-    if(data.status !== 200) {res.status(data.status).json(data); return}
+// app.get('/api/user/rooster', async (req: any, res: any) => {
+//     let data = await validateUser(req.headers)
+//     if(data.status !== 200) {res.status(data.status).json(data); return}
 
 
-    var options = {
-        url: 'https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=2022-09-02&van=2022-08-26',
-        headers: {'authorization': `Bearer ${data.bearer_token}`}
-    };
+//     var options = {
+//         url: 'https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=2022-09-02&van=2022-08-26',
+//         headers: {'authorization': `Bearer ${data.bearer_token}`}
+//     };
 
 
-    request(options, (error:any, response:any, body:any) => {
-        if (!error && response.statusCode == 200) {
-            res.json(JSON.parse(body))
-        }
-    });
-})
+//     request(options, (error:any, response:any, body:any) => {
+//         if (!error && response.statusCode == 200) {
+//             res.json(JSON.parse(body))
+//         }
+//     });
+// })
 
-app.get('/api/user/cijfers', async (req: any, res: any) => {
-    let data = await validateUser(req.headers)
-    if(data.status !== 200) {res.status(data.status).json(data); return}
+// app.get('/api/user/cijfers', async (req: any, res: any) => {
+//     let data = await validateUser(req.headers)
+//     if(data.status !== 200) {res.status(data.status).json(data); return}
 
 
-    res.json(data)
-})
+//     res.json(data)
+// })
 
 app.get('*', (req: any, res: any) => {
     res.status(404).json({
