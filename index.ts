@@ -1,3 +1,4 @@
+import { Console } from "console";
 import { json } from "stream/consumers";
 
 var express = require('express')
@@ -173,13 +174,16 @@ app.get('/api/user', async (req: any, res: any) => {
     let dateFormat:string;
     console.log('Starting rooster loop')
     do {
+        console.log('----LOOP----')
         dateFormat = date.toISOString().split('T')[0]
         const roosterResponse = await node_fetch(`https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=${dateFormat}&van=${dateFormat}`, {
             headers: {'authorization': `Bearer ${userData.bearer_token}`},
             method: 'GET'
         })
     
+        console.log(roosterResponse)
         roosterData = await roosterResponse.json()
+        console.log(roosterData)
         date.setDate(date.getDate() + 1)
     } while (roosterData?.TotalCount === 0);
     date.setDate(date.getDate() - 1)
@@ -192,6 +196,7 @@ app.get('/api/user', async (req: any, res: any) => {
         }
     }
 
+    console.log("Final")
     console.log(roosterData)
 
     const roosters:Array<RoosterVak> = roosterData.Items.map(item => {return {
