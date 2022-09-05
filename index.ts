@@ -23,8 +23,8 @@ function updateUsers() {
         console.log(jsonData)
         jsonData.forEach(async (userLogin)=>{
             let user = await generateBearerToken(userLogin)
-            console.log(users.push(user))
-
+            users.push(user)
+            console.log(user)
         })
     } catch (err) {
         console.log("Error parsing JSON string:", err);
