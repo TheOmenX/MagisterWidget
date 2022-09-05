@@ -173,6 +173,7 @@ app.get('/api/user', async (req: any, res: any) => {
     let roosterData:MagisterData;
     let dateFormat:string;
     console.log('Starting rooster loop')
+    console.log(`Bearer ${userData.bearer_token}`)
     do {
         console.log('----LOOP----')
         dateFormat = date.toISOString().split('T')[0]
