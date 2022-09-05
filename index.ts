@@ -166,14 +166,14 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
 app.get('/api/user', async (req: any, res: any) => {
     let userData:UserData = users.find((user) => user.leerling_nummer == req.headers.username) ?? res.json({message: "User not found"})
     if(userData.password !== req.headers.password) {res.status(400).json({message: "Password not matching"}); return}
-    
+
 
     //#region Requesting Rooster Data
     let date:Date = new Date(Date.now())
     let roosterData:MagisterData;
     let dateFormat:string;
     console.log('Starting rooster loop')
-    console.log(`Bearer ${userData.bearer_token}`)
+    console.log(userData)
     do {
         console.log('----LOOP----')
         dateFormat = date.toISOString().split('T')[0]
