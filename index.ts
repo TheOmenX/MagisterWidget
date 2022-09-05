@@ -164,7 +164,7 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
 
 
 app.get('/api/user', async (req: any, res: any) => {
-    let userData:UserData = users.find((user) => user.leerling_nummer == req.headers.username) ?? res.json({message: "User not found"})
+    let userData:any = users.find((user) => user.leerling_nummer == req.headers.username)
     if(userData.password !== req.headers.password) {res.status(400).json({message: "Password not matching"}); return}
 
 
