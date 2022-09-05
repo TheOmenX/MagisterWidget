@@ -192,7 +192,7 @@ app.get('/api/user', async (req: any, res: any) => {
         }
     }
 
-
+    console.log(roosterData)
 
     const roosters:Array<RoosterVak> = roosterData.Items.map(item => {return {
         start: item.Start,
