@@ -1,4 +1,5 @@
 import { Console } from "console";
+import { ConsoleMessage } from "puppeteer";
 import { json } from "stream/consumers";
 
 var express = require('express')
@@ -164,7 +165,10 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
 
 
 app.get('/api/user', async (req: any, res: any) => {
+    console.log(req.headers)
+    console.log(users)
     let userData:any = users.find((user) => user.leerling_nummer == req.headers.username)
+    if(!userData) {res.status(400).json({message: "No user found"}); return}
     if(userData.password !== req.headers.password) {res.status(400).json({message: "Password not matching"}); return}
 
 
