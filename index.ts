@@ -340,7 +340,7 @@ app.get('/api/user', async (req: any, res: any) => {
                                 <div class="uur">
                                     ${vak.lesuur}
                                 </div>
-                                <strong> ${vak.omschrijving} (A115)</strong>
+                                <strong> ${vak.omschrijving} (${vak.locatie})</strong>
                                 <span> ${Number(vak.start.split('T')[1].split(':')[0])+2}:${vak.start.split('T')[1].split(':')[1]} - ${Number(vak.einde.split('T')[1].split(':')[0])+2}:${vak.einde.split('T')[1].split(':')[1]}</span>
                             </div>
                         `
