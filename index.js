@@ -1,3 +1,4 @@
+"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -34,20 +35,63 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var _this = this;
+exports.__esModule = true;
 var express = require('express');
 var app = express();
 var puppeteer = require('puppeteer');
 var request = require('request');
+var node_fetch = require('node-fetch');
 var nodeHtmlToImage = require('node-html-to-image');
-app.use(express.static(__dirname));
+var fs = require('fs');
 var users = [];
-// Generating JWT
-var generateBearerToken = function (username, password) { return __awaiter(_this, void 0, void 0, function () {
-    var browser, page, error_1, error_2, sessionStorage, data;
+//Setup Users
+function updateUsers() {
+    var _this = this;
+    fs.readFile("./users.json", "utf8", function (err, jsonString) {
+        if (err) {
+            console.log("File read failed:", err);
+            return;
+        }
+        try {
+            var jsonData = JSON.parse(jsonString);
+            console.log(jsonData);
+            jsonData.forEach(function (userLogin) { return __awaiter(_this, void 0, void 0, function () {
+                var user;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, generateBearerToken(userLogin)];
+                        case 1:
+                            user = _a.sent();
+                            users.push(user);
+                            console.log(user);
+                            return [2 /*return*/];
+                    }
+                });
+            }); });
+        }
+        catch (err) {
+            console.log("Error parsing JSON string:", err);
+        }
+    });
+}
+updateUsers();
+setInterval(updateUsers, 1000 * 60 * 60 * 1.5);
+app.use(express.static(__dirname));
+var maandenLijst = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni',
+    'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
+var dagenLijst = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
+// // Generating JWT
+var generateBearerToken = function (login) { return __awaiter(void 0, void 0, void 0, function () {
+    var username, password, browser, page, error_1, error_2, sessionStorage, data;
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, puppeteer.launch()];
+            case 0:
+                username = login.leerling_nummer;
+                password = login.password;
+                return [4 /*yield*/, puppeteer.launch({
+                        headless: true,
+                        args: ['--no-sandbox', '--disable-setuid-sandbox']
+                    })];
             case 1:
                 browser = _a.sent();
                 return [4 /*yield*/, browser.newPage()];
@@ -73,7 +117,7 @@ var generateBearerToken = function (username, password) { return __awaiter(_this
                 return [3 /*break*/, 8];
             case 7:
                 error_1 = _a.sent();
-                return [2 /*return*/, { status: 400, message: 'User failed to log in. *Wrong Id*' }];
+                throw new Error('User failed to log in. *Wrong Id*');
             case 8: return [4 /*yield*/, page.evaluate(function (val) { return document.querySelector('#i0118').value = val; }, password)];
             case 9:
                 _a.sent();
@@ -89,6 +133,7 @@ var generateBearerToken = function (username, password) { return __awaiter(_this
                 _a.trys.push([11, 13, , 14]);
                 return [4 /*yield*/, Promise.all([
                         page.click('#idSIButton9'),
+                        page.screenshot({ path: './images/img.png' }),
                         page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }),
                     ])];
             case 12:
@@ -97,130 +142,171 @@ var generateBearerToken = function (username, password) { return __awaiter(_this
                 return [3 /*break*/, 14];
             case 13:
                 error_2 = _a.sent();
-                return [2 /*return*/, { status: 400, message: 'User failed to log in. *Wrong Password*' }];
+                throw new Error('User failed to log in. *Wrong Password*');
             case 14: return [4 /*yield*/, page.evaluate(function () { return Object.assign({}, window.sessionStorage); })];
             case 15:
                 sessionStorage = _a.sent();
+                console.log('Grabbed bearer token');
                 return [4 /*yield*/, browser.close()];
             case 16:
                 _a.sent();
                 data = JSON.parse(sessionStorage[Object.keys(sessionStorage)[0]]);
+                console.log('Data parsed');
                 return [2 /*return*/, {
-                        status: 200,
-                        message: 'User succesfully logged in',
                         leerling_nummer: username,
-                        naam: "".concat(data.profile.given_name, " ").concat(data.profile.family_name),
+                        password: password,
                         expires_at: data.expires_at,
                         bearer_token: data.access_token
                     }];
         }
     });
 }); };
-var validateUser = function (headers) { return __awaiter(_this, void 0, void 0, function () {
-    var username, password, data, indexUser;
+// const validateUser = async(headers: any): Promise<User> => {
+//     const username:number = headers.username;
+//     const password:string = headers.password;
+//     let data:User = users.find(user => user.leerling_nummer == username) ?? {status: 500, message: 'An error occured'};
+//     if(data.status === 200) return data;
+//     if(!username || !password){
+//         return {status: 400, message: 'Incorrect headers'}
+//     }
+//     const indexUser = users.findIndex(e => e.leerling_nummer === username)
+//     if(indexUser === -1){
+//         console.log('Creating new user')
+//         data = await generateBearerToken(username, password)
+//         console.log('Finished creating user')
+//         users.push(data)
+//     }else{
+//         if(users[indexUser].expires_at ?? Date.now() < Date.now()/1000){ // If token expired
+//             data = await generateBearerToken(username, password)
+//             users.push(data)
+//             data = users[indexUser]
+//         }
+//     }
+//     console.log('Validated user: ' + data)
+//     return data
+// }
+app.get('/api/user', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var userData, date, roosterData, dateFormat, roosterResponse, files, _i, files_1, file, roosters, imagePath, requestRooster;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                username = headers.username;
-                password = headers.password;
-                if (!username || !password) {
-                    return [2 /*return*/, { status: 400, message: 'Incorrect headers' }];
+                userData = users.find(function (user) { return user.leerling_nummer == req.query.username; });
+                if (!userData) {
+                    res.status(400).json({ message: "No user found" });
+                    return [2 /*return*/];
                 }
-                indexUser = users.findIndex(function (e) { return e.leerling_nummer === username; });
-                if (!(indexUser === -1)) return [3 /*break*/, 2];
-                console.log('Creating new user');
-                return [4 /*yield*/, generateBearerToken(username, password)];
+                if (userData.password !== req.query.password) {
+                    res.status(400).json({ message: "Password not matching" });
+                    return [2 /*return*/];
+                }
+                date = new Date(Date.now());
+                _a.label = 1;
             case 1:
-                data = _a.sent();
-                users.push(data);
-                return [3 /*break*/, 5];
+                dateFormat = date.toISOString().split('T')[0];
+                return [4 /*yield*/, node_fetch("https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=".concat(dateFormat, "&van=").concat(dateFormat), {
+                        headers: { 'authorization': "Bearer ".concat(userData.bearer_token) },
+                        method: 'GET'
+                    })];
             case 2:
-                if (!(users[indexUser].expires_at < Date.now() / 1000)) return [3 /*break*/, 4];
-                return [4 /*yield*/, generateBearerToken(username, password)];
+                roosterResponse = _a.sent();
+                return [4 /*yield*/, roosterResponse.json()];
             case 3:
-                data = _a.sent();
-                users.push(data);
-                return [3 /*break*/, 5];
+                roosterData = _a.sent();
+                date.setDate(date.getDate() + 1);
+                _a.label = 4;
             case 4:
-                data = users[indexUser];
+                if ((roosterData === null || roosterData === void 0 ? void 0 : roosterData.TotalCount) === 0) return [3 /*break*/, 1];
                 _a.label = 5;
-            case 5: return [2 /*return*/, data];
-        }
-    });
-}); };
-app.get('/api/user', function (req, res) { return __awaiter(_this, void 0, void 0, function () {
-    var data;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0: return [4 /*yield*/, validateUser(req.headers)];
-            case 1:
-                data = _a.sent();
-                res.status(data.status).json(data);
+            case 5:
+                date.setDate(date.getDate() - 1);
+                return [4 /*yield*/, fs.readdirSync('./images')];
+            case 6:
+                files = _a.sent();
+                for (_i = 0, files_1 = files; _i < files_1.length; _i++) {
+                    file = files_1[_i];
+                    if (file.startsWith("".concat(userData.leerling_nummer))) {
+                        if (!file.startsWith("".concat(userData.leerling_nummer, "-").concat(dateFormat)))
+                            fs.unlinkSync("./images/".concat(file));
+                    }
+                }
+                console.log("Final");
+                console.log(roosterData.Items[roosterData.TotalCount - 1]);
+                roosters = roosterData.Items.map(function (item) {
+                    var _a;
+                    return {
+                        start: item.Start,
+                        einde: item.Einde,
+                        lesuur: (_a = item.LesuurVan) !== null && _a !== void 0 ? _a : '-',
+                        omschrijving: item.Omschrijving,
+                        locatie: item.Lokatie
+                    };
+                });
+                imagePath = "images/151563-".concat(dateFormat, ".png");
+                nodeHtmlToImage({
+                    output: "./".concat(imagePath),
+                    html: "<!DOCTYPE html>\n        <html>\n        <head>\n            <link rel=\"stylesheet\" href=\"https://use.typekit.net/rre3fdy.css\">\n            <style>\n                :root {\n                    --blue: #0f2949;\n                    --black: #151519;\n                    --grey: #e5e5e5;\n                    --dark-grey: #606062;\n                }\n                html{\n                    background-color: white;\n                    margin: 0;\n                }\n        \n                * {\n                    font-family: arboria, sans-serif;\n                }\n        \n                body{\n                    width: 728px;\n                    height: 340px;\n                    background-color: var(--blue);\n                    color: white;\n                    margin: 0;\n                    display: flex;\n                    flex-direction: column;\n                }\n        \n                .datum {\n                    padding: 8px 40px;\n                    border-bottom: 2px solid var(--dark-grey);\n                }\n        \n                .datum > h3 {\n                    margin: 0\n                }\n        \n                .data {\n                    display: flex;\n                    flex: 1;\n                    background-color: var(--black);\n                }\n        \n                .rooster{\n                    width: 65%;\n                }\n        \n                .les{\n                    display: flex;\n                    flex-direction: row;\n                    height: 30px;\n                    font-size: larger;\n                    align-items: center;\n                    border-bottom: var(--dark-grey) 1px solid;\n                }\n        \n                .uur{\n                    width: 24px;\n                    height: 24px;\n                    margin: 1px 20px;\n                    background-color: var(--blue);\n                    text-align: center;\n                    border-radius: 4px;\n                    font-weight: 800;\n                    line-height: 22px;\n                }\n        \n                .les strong {\n                    margin-right: 20px\n                }\n        \n                .nieuws {\n                    width: 35%;\n                    border-left: var(--dark-grey) 2px solid;\n                    display: flex;\n                    flex-direction: column;\n                }\n                .nieuws > * {\n                    height: 142px;\n                }\n        \n                .bericht {\n                    border-bottom: var(--dark-grey) 2px solid;\n                }\n        \n                .cijfer{\n                    display: flex;\n                    flex-direction: row;\n                    align-items: center;\n                    justify-content: space-evenly;\n                }\n        \n                .cijfer .info {\n                    display: flex;\n                    flex-direction: column;\n                }\n        \n                .cijfer > span{\n                    width: 100px;\n                    height: 100px;\n                    background-color: var(--blue);\n                    text-align: center;\n                    font-size: xxx-large;\n                    font-weight: 800;\n                    padding:auto;\n                    line-height: 100px;\n                    border-radius: 10px;\n                }\n            </style>\n        </head>\n        <body>\n            <div class=\"datum\">\n                <h3>".concat(dagenLijst[date.getDay() - 1], " ").concat(date.getDate(), " ").concat(maandenLijst[date.getMonth()], "</h3>\n            </div>\n            <div class=\"data\">\n                <div class=\"rooster\">\n                    ").concat(roosters.map(function (vak) {
+                        return "\n                            <div class=\"les\">\n                                <div class=\"uur\">\n                                    ".concat(vak.lesuur, "\n                                </div>\n                                <strong> ").concat(vak.omschrijving, " (").concat(vak.locatie, ")</strong>\n                                <span> ").concat(Number(vak.start.split('T')[1].split(':')[0]) + 2, ":").concat(vak.start.split('T')[1].split(':')[1], " - ").concat(Number(vak.einde.split('T')[1].split(':')[0]) + 2, ":").concat(vak.einde.split('T')[1].split(':')[1], "</span>\n                            </div>\n                        ");
+                    }).toString().replace(/,/g, ''), "\n                </div>\n                <div class=\"nieuws\">\n                    <div class=\"bericht\">\n        \n                    </div>\n                    <div class=\"cijfer\">\n                        <span> 9.1</span>\n                        <div class=\"info\">\n                            <span>Netl</span>\n                            <span>11-9</span>\n                            <span>15x</span>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </body>\n        </html>"),
+                    puppeteerArgs: { args: ["--no-sandbox"] }
+                })
+                    .then(function () { return res.sendFile("/".concat(imagePath), { root: __dirname }); });
+                requestRooster = function (date) {
+                    var dateFormat = date.toISOString().split('T')[0];
+                    console.log(dateFormat);
+                    var options = {
+                        url: "https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=".concat(dateFormat, "&van=").concat(dateFormat),
+                        headers: { 'authorization': "Bearer ".concat(userData.bearer_token) }
+                    };
+                    console.log(options);
+                    request(options, function (error, response, body) {
+                        if (!error && response.statusCode == 200) {
+                            var data = JSON.parse(body);
+                            date.setDate(date.getDate() + 1);
+                            if (data.TotalCount === 0) {
+                                requestRooster(date);
+                            }
+                            else
+                                return;
+                        }
+                        else {
+                            console.log(error);
+                        }
+                    });
+                };
                 return [2 /*return*/];
         }
     });
 }); });
-app.get('/api/image', function (req, res) { return __awaiter(_this, void 0, void 0, function () {
+app.get('/api/test', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
-        console.log('request made');
-        nodeHtmlToImage({
-            output: './images/151563.png',
-            html: "<html>\n          <head>\n            <style>\n              body {\n                width: 364px;\n                height: 170px;\n                background-color: red;\n              }\n            </style>\n          </head>\n          <body>Hello world!</body>\n        </html>\n        "
-        })
-            .then(function () { return console.log('The image was created successfully!'); });
-        res.json([
-            'http://192.168.2.111:3000/images/151563.png'
-        ]);
+        console.log(req.query);
+        res.json(users);
         return [2 /*return*/];
     });
 }); });
-app.get('/api/user/rooster', function (req, res) { return __awaiter(_this, void 0, void 0, function () {
-    var data, options;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0: return [4 /*yield*/, validateUser(req.headers)];
-            case 1:
-                data = _a.sent();
-                if (data.status !== 200) {
-                    res.status(data.status).json(data);
-                    return [2 /*return*/];
-                }
-                options = {
-                    url: 'https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=2022-09-02&van=2022-08-26',
-                    headers: { 'authorization': "Bearer ".concat(data.bearer_token) }
-                };
-                request(options, function (error, response, body) {
-                    if (!error && response.statusCode == 200) {
-                        res.json(JSON.parse(body));
-                    }
-                    else {
-                    }
-                });
-                return [2 /*return*/];
-        }
-    });
-}); });
-app.get('/api/user/cijfers', function (req, res) { return __awaiter(_this, void 0, void 0, function () {
-    var data;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0: return [4 /*yield*/, validateUser(req.headers)];
-            case 1:
-                data = _a.sent();
-                if (data.status !== 200) {
-                    res.status(data.status).json(data);
-                    return [2 /*return*/];
-                }
-                res.json(data);
-                return [2 /*return*/];
-        }
-    });
-}); });
+// app.get('/api/user/rooster', async (req: any, res: any) => {
+//     let data = await validateUser(req.headers)
+//     if(data.status !== 200) {res.status(data.status).json(data); return}
+//     var options = {
+//         url: 'https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=2022-09-02&van=2022-08-26',
+//         headers: {'authorization': `Bearer ${data.bearer_token}`}
+//     };
+//     request(options, (error:any, response:any, body:any) => {
+//         if (!error && response.statusCode == 200) {
+//             res.json(JSON.parse(body))
+//         }
+//     });
+// })
+// app.get('/api/user/cijfers', async (req: any, res: any) => {
+//     let data = await validateUser(req.headers)
+//     if(data.status !== 200) {res.status(data.status).json(data); return}
+//     res.json(data)
+// })
 app.get('*', function (req, res) {
     res.status(404).json({
         message: 'Not found'
     });
 });
-app.listen(3000, function () {
-    console.log('Listening on port 3000');
+app.listen(process.env.PORT || 3000, function () {
+    console.log("Listening on port ".concat(process.env.PORT || 3000));
 });
