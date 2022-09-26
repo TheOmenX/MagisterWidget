@@ -1,7 +1,3 @@
-import { Console } from "console";
-import { ConsoleMessage } from "puppeteer";
-import { json } from "stream/consumers";
-
 var express = require('express')
 const app = express();
 const puppeteer = require('puppeteer');
@@ -21,11 +17,9 @@ function updateUsers() {
     }
     try {
         const jsonData:Array<User> = JSON.parse(jsonString);
-        console.log(jsonData)
         jsonData.forEach(async (userLogin)=>{
             let user = await generateBearerToken(userLogin)
             users.push(user)
-            console.log(user)
         })
     } catch (err) {
         console.log("Error parsing JSON string:", err);
@@ -59,6 +53,13 @@ interface MagisterData {
     TotalCount: number,
 }
 
+interface LaatsteCijfer{
+    waarde: string,
+    vak: string,
+    weegfactor: number,
+    datum:Date,
+}
+
 interface MagisterRooster {
     Start: string,
     Einde: string,
@@ -75,12 +76,7 @@ interface RoosterVak {
     locatie: string
 }
 
-type pastItem = {
-    links: Array<string>,
-    count: number,
-}
-
-// // Generating JWT
+// Generating JWT
 const generateBearerToken = async (login:User): Promise<UserData> => {
     const username = login.leerling_nummer;
     const password = login.password;
@@ -115,7 +111,6 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
   try {
     await Promise.all([
         page.click('#idSIButton9'),
-        page.screenshot({path: './images/img.png'}),
         page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }),
     ]);
     console.log('Skipped popup')
@@ -137,37 +132,7 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
   }
 };
 
-// const validateUser = async(headers: any): Promise<User> => {
-//     const username:number = headers.username;
-//     const password:string = headers.password;
-
-//     let data:User = users.find(user => user.leerling_nummer == username) ?? {status: 500, message: 'An error occured'};
-//     if(data.status === 200) return data;
-//     if(!username || !password){
-//         return {status: 400, message: 'Incorrect headers'}
-//     }
-//     const indexUser = users.findIndex(e => e.leerling_nummer === username)
-//     if(indexUser === -1){
-//         console.log('Creating new user')
-//         data = await generateBearerToken(username, password)
-//         console.log('Finished creating user')
-//         users.push(data)
-//     }else{
-//         if(users[indexUser].expires_at ?? Date.now() < Date.now()/1000){ // If token expired
-//             data = await generateBearerToken(username, password)
-//             users.push(data)
-//             data = users[indexUser]
-//         }
-//     }
-//     console.log('Validated user: ' + data)
-//     return data
-// }
-
-
 app.get('/api/user', async (req: any, res: any) => {
-    console.log(req.headers)
-    console.log(req.query)
-    console.log(users)
     let userData:any = users.find((user) => user.leerling_nummer == req.query.username)
     if(!userData) {res.status(400).json({message: "No user found"}); return}
     if(userData.password !== req.query.password) {res.status(400).json({message: "Password not matching"}); return}
@@ -178,7 +143,6 @@ app.get('/api/user', async (req: any, res: any) => {
     let roosterData:MagisterData;
     let dateFormat:string;
     console.log('Starting rooster loop')
-    console.log(userData)
     do {
         console.log('----LOOP----')
         dateFormat = date.toISOString().split('T')[0]
@@ -186,10 +150,7 @@ app.get('/api/user', async (req: any, res: any) => {
             headers: {'authorization': `Bearer ${userData.bearer_token}`},
             method: 'GET'
         })
-    
-        console.log(roosterResponse)
         roosterData = await roosterResponse.json()
-        console.log(roosterData)
         date.setDate(date.getDate() + 1)
     } while (roosterData?.TotalCount === 0);
     date.setDate(date.getDate() - 1)
@@ -202,9 +163,6 @@ app.get('/api/user', async (req: any, res: any) => {
         }
     }
 
-    console.log("Final")
-    console.log(roosterData)
-
     const roosters:Array<RoosterVak> = roosterData.Items.map(item => {return {
         start: item.Start,
         einde: item.Einde,
@@ -212,6 +170,26 @@ app.get('/api/user', async (req: any, res: any) => {
         omschrijving: item.Omschrijving,
         locatie: item.Lokatie,
     }})
+
+
+    //#region Cijfers
+
+    const cijferResponse:any = await node_fetch("https://canisius.magister.net/api/personen/21508/cijfers/laatste?top=1&skip=0", {
+        headers: {'authorization': `Bearer ${userData.bearer_token}`},
+        method: 'GET'
+    })
+
+    const cijferData:any = await cijferResponse.json()
+
+    const cijfer:LaatsteCijfer = {
+        waarde: cijferData.items[0].waarde,
+        vak: cijferData.items[0].vak.omschrijving,
+        weegfactor: cijferData.items[0].weegfactor,
+        datum: new Date(cijferData.items[0].ingevoerdOp)
+    }
+
+
+    //#endregion
 
     const imagePath = `images/151563-${dateFormat}.png`
     nodeHtmlToImage({
@@ -351,11 +329,11 @@ app.get('/api/user', async (req: any, res: any) => {
         
                     </div>
                     <div class="cijfer">
-                        <span> 9.1</span>
+                        <span> ${cijfer.waarde}</span>
                         <div class="info">
-                            <span>Netl</span>
-                            <span>11-9</span>
-                            <span>15x</span>
+                            <span>${cijfer.vak.substring(0, 1).toUpperCase() + cijfer.vak.substring(1)}</span>
+                            <span>${cijfer.datum.getDate()}/${cijfer.datum.getMonth() + 1}</span>
+                            <span>${cijfer.weegfactor}x</span>
                         </div>
                     </div>
                 </div>
@@ -365,19 +343,13 @@ app.get('/api/user', async (req: any, res: any) => {
         puppeteerArgs: { args: ["--no-sandbox"] }
       })
         .then(() => res.sendFile(`/${imagePath}`, { root: __dirname }))
-
-
-
-    
     const requestRooster =  (date:Date) => {
         const dateFormat = date.toISOString().split('T')[0]
-        console.log(dateFormat)
         const options = {
             url: `https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=${dateFormat}&van=${dateFormat}`,
             headers: {'authorization': `Bearer ${userData.bearer_token}`}
         };
 
-        console.log(options)
         request(options, (error:any, response:any, body:string) => {
             if (!error && response.statusCode == 200) {
                 const data:MagisterData = JSON.parse(body)
@@ -385,46 +357,11 @@ app.get('/api/user', async (req: any, res: any) => {
                 if(data.TotalCount === 0) {requestRooster(date)}
                 else return
             }else {
-                console.log(error)
+                throw Error(error)
             }
         });
     }
 })
-
-app.get('/api/test', async (req: any, res: any) => {
-    
-    console.log(req.query)
-
-    res.json(users)
-    //res.sendFile('./images/151563-2022-08-30.png', { root: __dirname })
-
-})
-
-// app.get('/api/user/rooster', async (req: any, res: any) => {
-//     let data = await validateUser(req.headers)
-//     if(data.status !== 200) {res.status(data.status).json(data); return}
-
-
-//     var options = {
-//         url: 'https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=2022-09-02&van=2022-08-26',
-//         headers: {'authorization': `Bearer ${data.bearer_token}`}
-//     };
-
-
-//     request(options, (error:any, response:any, body:any) => {
-//         if (!error && response.statusCode == 200) {
-//             res.json(JSON.parse(body))
-//         }
-//     });
-// })
-
-// app.get('/api/user/cijfers', async (req: any, res: any) => {
-//     let data = await validateUser(req.headers)
-//     if(data.status !== 200) {res.status(data.status).json(data); return}
-
-
-//     res.json(data)
-// })
 
 app.get('*', (req: any, res: any) => {
     res.status(404).json({
