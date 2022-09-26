@@ -142,17 +142,23 @@ app.get('/api/user', async (req: any, res: any) => {
     let date:Date = new Date(Date.now())
     let roosterData:MagisterData;
     let dateFormat:string;
+<<<<<<< HEAD
     console.log('Starting rooster loop')
+=======
+>>>>>>> 3bcb2fcda57b237e5364ca20525b16c2268b9089
     do {
-        console.log('----LOOP----')
         dateFormat = date.toISOString().split('T')[0]
         const roosterResponse = await node_fetch(`https://canisius.magister.net/api/personen/21508/afspraken?status=1&tot=${dateFormat}&van=${dateFormat}`, {
             headers: {'authorization': `Bearer ${userData.bearer_token}`},
             method: 'GET'
         })
+<<<<<<< HEAD
+=======
+    
+>>>>>>> 3bcb2fcda57b237e5364ca20525b16c2268b9089
         roosterData = await roosterResponse.json()
         date.setDate(date.getDate() + 1)
-    } while (roosterData?.TotalCount === 0);
+    } while (roosterData?.TotalCount === 0 || new Date(roosterData.Items[roosterData.TotalCount-1].Einde) < new Date(Date.now()));
     date.setDate(date.getDate() - 1)
     
     let files = await fs.readdirSync('./images')
@@ -163,6 +169,13 @@ app.get('/api/user', async (req: any, res: any) => {
         }
     }
 
+<<<<<<< HEAD
+=======
+    console.log("Final")
+    console.log(new Date(roosterData.Items[roosterData.TotalCount-1].Einde))
+    console.log(new Date(Date.now()))
+
+>>>>>>> 3bcb2fcda57b237e5364ca20525b16c2268b9089
     const roosters:Array<RoosterVak> = roosterData.Items.map(item => {return {
         start: item.Start,
         einde: item.Einde,
@@ -318,7 +331,7 @@ app.get('/api/user', async (req: any, res: any) => {
                                 <div class="uur">
                                     ${vak.lesuur}
                                 </div>
-                                <strong> ${vak.omschrijving} (${vak.locatie})</strong>
+                                <strong> ${vak.omschrijving} (${vak.locatie ?? "-"})</strong>
                                 <span> ${Number(vak.start.split('T')[1].split(':')[0])+2}:${vak.start.split('T')[1].split(':')[1]} - ${Number(vak.einde.split('T')[1].split(':')[0])+2}:${vak.einde.split('T')[1].split(':')[1]}</span>
                             </div>
                         `
