@@ -5,31 +5,9 @@ const request = require('request');
 const node_fetch = require('node-fetch');
 const nodeHtmlToImage = require('node-html-to-image')
 const fs = require('fs');
+require('dotenv').config()
 
 let users:Array<UserData> = [];
-
-//Setup Users
-function updateUsers() {
-    fs.readFile("./users.json", "utf8", (err:Error, jsonString:string) => {
-    if (err) {
-        console.log("File read failed:", err);
-        return;
-    }
-    try {
-        const jsonData:Array<User> = JSON.parse(jsonString);
-        jsonData.forEach(async (userLogin)=>{
-            let user = await generateBearerToken(userLogin)
-            users.push(user)
-        })
-    } catch (err) {
-        console.log("Error parsing JSON string:", err);
-    }
-    });
-}
-
-updateUsers()
-setInterval(updateUsers, 1000 * 60 * 60 * 1.5)
-
 
 app.use(express.static(__dirname)); 
 
@@ -57,7 +35,7 @@ interface LaatsteCijfer{
     waarde: string,
     vak: string,
     weegfactor: number,
-    datum:Date,
+    omschrijving: string,
 }
 
 interface MagisterRooster {
@@ -129,9 +107,28 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
     password: password,
     expires_at: data.expires_at,
     bearer_token: data.access_token
-  }
+}
 };
 
+//Setup Users
+function updateUsers() {
+    const jsonString:string = process.env.LEERLINGEN2 ? process.env.LEERLINGEN2 : ''
+    try {
+        const jsonData:Array<User> = JSON.parse(jsonString);
+        jsonData.forEach(async (userLogin)=>{
+            let user = await generateBearerToken(userLogin)
+            users.push(user)
+        })
+    } catch (err) {
+        console.log("Error parsing JSON string:", err);
+    }
+}
+
+
+updateUsers()
+setInterval(updateUsers, 1000 * 60 * 60 * 1.5)
+
+/*
 app.get('/api/user', async (req: any, res: any) => {
     let userData:any = users.find((user) => user.leerling_nummer == req.query.username)
     if(!userData) {res.status(400).json({message: "No user found"}); return}
@@ -361,13 +358,34 @@ app.get('/api/user', async (req: any, res: any) => {
         });
     }
 })
+*/
 
+app.get('/api/cijfer', async (req: any, res:any) => {
+    let userData:any = users.find((user) => user.leerling_nummer == req.query.username)
+    if(!userData) {res.status(300).json({message:"User not found"}); return}
+    const cijferResponse:any = await node_fetch("https://canisius.magister.net/api/personen/21508/cijfers/laatste?top=1&skip=0", {
+        headers: {'authorization': `Bearer ${userData.bearer_token}`},
+        method: 'GET'
+    })
+
+    const cijferData:any = await cijferResponse.json()
+
+    const cijfer:LaatsteCijfer = {
+        waarde: cijferData.items[0].waarde,
+        vak: cijferData.items[0].vak.code,
+        weegfactor: cijferData.items[0].weegfactor,
+        omschrijving: cijferData.items[0].omschrijving,
+    }
+
+    res.status(200).json(cijfer)
+})
+  
 app.get('*', (req: any, res: any) => {
     res.status(404).json({
         message: 'Not found'
     })
 })
-  
+
 app.listen(process.env.PORT || 3000, () => {
     console.log(`Listening on port ${process.env.PORT || 3000}`)
 })
