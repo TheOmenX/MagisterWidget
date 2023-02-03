@@ -42,7 +42,7 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
   try {
     await Promise.all([
         page.click('#username_submit'),
-        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }),
+        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 100000 }),
       ]);
       console.log('Submitted username and redirected to microsoft login page')
   } catch (error) {
@@ -60,7 +60,7 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
   try {
     await Promise.all([
         page.click('#idSIButton9'),
-        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }),
+        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 100000 }),
     ]);
     console.log('Skipped popup')
   } catch (error) {
