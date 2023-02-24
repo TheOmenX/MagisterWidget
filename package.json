@@ -1,17 +1,25 @@
 {
+  "name": "magisterwidget",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "start": "ts-node index.ts"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "devDependencies": {
-    "@types/node": "^18.7.13",
-    "ts-node": "^10.9.1"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheOmenX/MagisterWidget.git"
   },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TheOmenX/MagisterWidget/issues"
+  },
+  "homepage": "https://github.com/TheOmenX/MagisterWidget#readme",
   "dependencies": {
     "dotenv": "^16.0.3",
-    "express": "^4.18.1",
-    "fs": "^0.0.1-security",
+    "express": "^4.18.2",
     "node-fetch": "^3.3.0",
-    "puppeteer": "^16.2.0",
-    "typescript": "^4.9.5"
+    "puppeteer": "^19.7.2"
   }
 }

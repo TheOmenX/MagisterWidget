@@ -1,11 +1,10 @@
 var express = require('express')
 const app = express();
 const puppeteer = require('puppeteer');
-const node_fetch = require('node-fetch');
-const fs = require('fs');
+const node_fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 require('dotenv').config()
 
-let users:Array<UserData> = [];
+let users = [];
 
 app.use(express.static(__dirname)); 
 
@@ -14,46 +13,9 @@ const maandenLijst = ['Januari', 'Februari', 'Maart', 'April', 'Mei' ,'Juni' ,
 
 const dagenLijst = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'] 
 
-interface User {
-    leerling_nummer: number,
-    password: string,
-}
-
-interface UserData extends User {
-    expires_at: number,
-    bearer_token: string,
-}
-
-interface MagisterData {
-    Items: Array<MagisterRooster>,
-    TotalCount: number,
-}
-
-interface LaatsteCijfer{
-    waarde: string,
-    vak: string,
-    weegfactor: number,
-    omschrijving: string,
-}
-
-interface MagisterRooster {
-    Start: string,
-    Einde: string,
-    LesuurVan: number,
-    Omschrijving: string,
-    Lokatie: string
-}
-
-interface RoosterVak {
-    start: string,
-    einde: string,
-    lesuur: number,
-    omschrijving: string,
-    locatie: string
-}
 
 // Generating JWT
-const generateBearerToken = async (login:User): Promise<UserData> => {
+const generateBearerToken = async (login) => {
     const username = login.leerling_nummer;
     const password = login.password;
   const browser = await puppeteer.launch({
@@ -76,7 +38,7 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
         throw new Error('User failed to log in. *Wrong Id*')
   }
 
-  await page.evaluate((val:any) => (<HTMLInputElement>document.querySelector('#i0118')!).value = val, password);
+  await page.evaluate((val) => document.querySelector('#i0118').value = val, password);
 
   await Promise.all([
     page.click('#idSIButton9'),
@@ -110,9 +72,9 @@ const generateBearerToken = async (login:User): Promise<UserData> => {
 
 //Setup Users
 function updateUsers() {
-    const jsonString:string = process.env.LEERLINGEN2 ? process.env.LEERLINGEN2 : ''
+    const jsonString = process.env.LEERLINGEN2 ? process.env.LEERLINGEN2 : ''
     try {
-        const jsonData:Array<User> = JSON.parse(jsonString);
+        const jsonData = JSON.parse(jsonString);
         jsonData.forEach(async (userLogin)=>{
             let user = await generateBearerToken(userLogin)
             users.push(user)
@@ -125,17 +87,17 @@ function updateUsers() {
 updateUsers()
 setInterval(updateUsers, 1000 * 60 * 60 * 1.5)
 
-app.get('/api/cijfer', async (req: any, res:any) => {
-    let userData:any = users.find((user) => user.leerling_nummer == req.query.username)
+app.get('/api/cijfer', async (req, res) => {
+    let userData = users.find((user) => user.leerling_nummer == req.query.username)
     if(!userData) {res.status(300).json({message:"User not found"}); return}
-    const cijferResponse:any = await node_fetch("https://canisius.magister.net/api/personen/21508/cijfers/laatste?top=1&skip=0", {
+    const cijferResponse = await node_fetch("https://canisius.magister.net/api/personen/21508/cijfers/laatste?top=1&skip=0", {
         headers: {'authorization': `Bearer ${userData.bearer_token}`},
         method: 'GET'
     })
 
-    const cijferData:any = await cijferResponse.json()
+    const cijferData = await cijferResponse.json()
 
-    const cijfer:LaatsteCijfer = {
+    const cijfer = {
         waarde: cijferData.items[0].waarde,
         vak: cijferData.items[0].vak.code,
         weegfactor: cijferData.items[0].weegfactor,
@@ -145,7 +107,7 @@ app.get('/api/cijfer', async (req: any, res:any) => {
     res.status(200).json(cijfer)
 })
   
-app.get('*', (req: any, res: any) => {
+app.get('*', (req, res) => {
     res.status(404).json({
         message: 'Not found'
     })
